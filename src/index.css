@@ -1,0 +1,18 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@keyframes floatUp {
+  0%   { transform: translateY(0) rotate(0deg); opacity: 0; }
+  5%   { opacity: 1; }
+  95%  { opacity: 1; }
+  100% { transform: translateY(-120vh) rotate(25deg); opacity: 0; }
+}
+
+* {
+  box-sizing: border-box;
+}
+
+input::placeholder {
+  color: rgba(139, 125, 107, 0.4);
+}
