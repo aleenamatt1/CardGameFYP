@@ -1,4 +1,5 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
+import { useLobby } from '../hooks/useLobby'
 
 const suits = ['♠', '♥', '♦', '♣']
 
@@ -96,12 +97,6 @@ function Btn({ children, onClick, variant = 'primary', disabled }) {
   )
 }
 
-const MOCK_LOBBIES = [
-  { id: 1, name: "Dragon's Den", players: '2/4' },
-  { id: 2, name: 'The Royal Table', players: '3/4' },
-  { id: 3, name: 'Midnight Duel', players: '1/2' },
-]
-
 function HomeScreen({ onCreate, onJoin }) {
   return (
     <UICard style={{ textAlign: 'center', maxWidth: '420px', width: '100%' }}>
@@ -123,17 +118,21 @@ function HomeScreen({ onCreate, onJoin }) {
 }
 
 function CreateScreen({ onBack, onCreated }) {
+  const { createLobby, loading, error } = useLobby()
   const [name, setName] = useState('')
   const [password, setPassword] = useState('')
   const [confirm, setConfirm] = useState('')
   const [success, setSuccess] = useState(false)
   const mismatch = confirm && password !== confirm
-  const canSubmit = name.trim() && password.length >= 4 && !mismatch
+  const canSubmit = name.trim() && password.length >= 4 && !mismatch && !loading
 
-  function handleCreate() {
+  async function handleCreate() {
     if (!canSubmit) return
-    setSuccess(true)
-    setTimeout(() => onCreated({ name, password }), 1200)
+    const lobby = await createLobby({ name, password })
+    if (lobby) {
+      setSuccess(true)
+      setTimeout(() => onCreated(lobby), 1200)
+    }
   }
 
   return (
@@ -166,7 +165,14 @@ function CreateScreen({ onBack, onCreated }) {
               ✕ Passwords do not match
             </p>
           )}
-          <Btn onClick={handleCreate} disabled={!canSubmit}>Create Lobby</Btn>
+          {error && (
+            <p style={{ color: '#c0392b', fontSize: '12px', marginBottom: '16px', fontFamily: "'Courier New', monospace" }}>
+              ✕ {error}
+            </p>
+          )}
+          <Btn onClick={handleCreate} disabled={!canSubmit}>
+            {loading ? 'Creating…' : 'Create Lobby'}
+          </Btn>
         </>
       )}
     </UICard>
@@ -174,19 +180,32 @@ function CreateScreen({ onBack, onCreated }) {
 }
 
 function JoinScreen({ onBack, onJoined }) {
+  const { fetchLobbies, joinLobby, loading, error } = useLobby()
+  const [lobbies, setLobbies] = useState([])
   const [selected, setSelected] = useState(null)
   const [password, setPassword] = useState('')
-  const [error, setError] = useState('')
+  const [joinError, setJoinError] = useState('')
   const [success, setSuccess] = useState(false)
-  const selectedLobby = MOCK_LOBBIES.find(l => l.id === selected)
+  const [fetching, setFetching] = useState(true)
+  const selectedLobby = lobbies.find(l => l.id === selected)
 
-  function handleJoin() {
-    // TODO: replace with real Supabase password check via useLobby()
-    if (password === '1234') {
+  useEffect(() => {
+    async function load() {
+      const data = await fetchLobbies()
+      setLobbies(data)
+      setFetching(false)
+    }
+    load()
+  }, [])
+
+  async function handleJoin() {
+    if (!selected || !password) return
+    const lobby = await joinLobby({ lobbyId: selected, password })
+    if (lobby) {
       setSuccess(true)
-      setTimeout(() => onJoined(selectedLobby), 1200)
+      setTimeout(() => onJoined(lobby), 1200)
     } else {
-      setError('Incorrect password. Please try again.')
+      setJoinError('Incorrect password. Please try again.')
     }
   }
 
@@ -213,41 +232,50 @@ function JoinScreen({ onBack, onJoined }) {
       ) : (
         <>
           <div style={{ marginBottom: '24px' }}>
-            {MOCK_LOBBIES.map(lobby => (
-              <div key={lobby.id} onClick={() => { setSelected(lobby.id); setError(''); setPassword('') }}
-                style={{
-                  display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-                  padding: '14px 16px', marginBottom: '8px', borderRadius: '8px',
-                  border: selected === lobby.id ? '1px solid rgba(212,175,55,0.55)' : '1px solid rgba(255,255,255,0.07)',
-                  background: selected === lobby.id ? 'rgba(212,175,55,0.08)' : 'rgba(255,255,255,0.02)',
-                  cursor: 'pointer', transition: 'all 0.15s'
-                }}>
-                <span style={{ color: '#f0ece4', fontFamily: "'Georgia', serif", fontSize: '15px' }}>
-                  {lobby.name} <span style={{ color: '#6b5d4f', fontSize: '11px' }}>🔒</span>
-                </span>
-                <span style={{ color: '#8b7d6b', fontSize: '11px', fontFamily: "'Courier New', monospace" }}>
-                  {lobby.players} players
-                </span>
-              </div>
-            ))}
+            {fetching ? (
+              <p style={{ color: '#6b5d4f', fontSize: '13px', textAlign: 'center', fontFamily: "'Courier New', monospace" }}>
+                Loading tables…
+              </p>
+            ) : lobbies.length === 0 ? (
+              <p style={{ color: '#6b5d4f', fontSize: '13px', textAlign: 'center', fontFamily: "'Courier New', monospace" }}>
+                No open lobbies. Create one!
+              </p>
+            ) : (
+              lobbies.map(lobby => (
+                <div key={lobby.id} onClick={() => { setSelected(lobby.id); setJoinError(''); setPassword('') }}
+                  style={{
+                    display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+                    padding: '14px 16px', marginBottom: '8px', borderRadius: '8px',
+                    border: selected === lobby.id ? '1px solid rgba(212,175,55,0.55)' : '1px solid rgba(255,255,255,0.07)',
+                    background: selected === lobby.id ? 'rgba(212,175,55,0.08)' : 'rgba(255,255,255,0.02)',
+                    cursor: 'pointer', transition: 'all 0.15s'
+                  }}>
+                  <span style={{ color: '#f0ece4', fontFamily: "'Georgia', serif", fontSize: '15px' }}>
+                    {lobby.name} <span style={{ color: '#6b5d4f', fontSize: '11px' }}>🔒</span>
+                  </span>
+                </div>
+              ))
+            )}
           </div>
           {selected && (
             <>
               <Input
                 label={`Password for "${selectedLobby?.name}"`}
                 type="password" value={password}
-                onChange={v => { setPassword(v); setError('') }}
+                onChange={v => { setPassword(v); setJoinError('') }}
                 placeholder="Enter lobby password"
               />
-              {error && (
+              {joinError && (
                 <p style={{ color: '#c0392b', fontSize: '12px', marginBottom: '16px', fontFamily: "'Courier New', monospace" }}>
-                  ✕ {error}
+                  ✕ {joinError}
                 </p>
               )}
-              <Btn onClick={handleJoin} disabled={!password}>Enter Table</Btn>
+              <Btn onClick={handleJoin} disabled={!password || loading}>
+                {loading ? 'Checking…' : 'Enter Table'}
+              </Btn>
             </>
           )}
-          {!selected && (
+          {!selected && lobbies.length > 0 && (
             <p style={{ color: '#4a4035', fontSize: '11px', textAlign: 'center', fontFamily: "'Courier New', monospace" }}>
               ↑ Select a table above to continue
             </p>
