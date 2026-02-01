@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useLobby } from '../hooks/useLobby'
 
 const suits = ['♠', '♥', '♦', '♣']
@@ -98,6 +98,9 @@ function Btn({ children, onClick, variant = 'primary', disabled }) {
 }
 
 function HomeScreen({ onCreate, onJoin }) {
+  const [nickname, setNickname] = useState('')
+  const canContinue = nickname.trim().length >= 2
+
   return (
     <UICard style={{ textAlign: 'center', maxWidth: '420px', width: '100%' }}>
       <div style={{ marginBottom: '8px', fontSize: '30px', letterSpacing: '6px' }}>♠ ♥ ♦ ♣</div>
@@ -107,18 +110,27 @@ function HomeScreen({ onCreate, onJoin }) {
       }}>SWITCH</h1>
       <p style={{
         color: '#8b7d6b', fontSize: '12px', letterSpacing: '3px',
-        textTransform: 'uppercase', marginBottom: '44px',
+        textTransform: 'uppercase', marginBottom: '36px',
         fontFamily: "'Courier New', monospace"
       }}>Online Card Room</p>
-      <Btn onClick={onCreate}>⊕ &nbsp;Create a Game</Btn>
-      <Btn onClick={onJoin} variant="outline">⊞ &nbsp;Join a Game</Btn>
+      <div style={{ textAlign: 'left', marginBottom: '8px' }}>
+        <Input
+          label="Your Nickname"
+          value={nickname}
+          onChange={setNickname}
+          placeholder="e.g. Ace"
+          maxLength={20}
+        />
+      </div>
+      <Btn onClick={() => onCreate(nickname)} disabled={!canContinue}>⊕ &nbsp;Create a Game</Btn>
+      <Btn onClick={() => onJoin(nickname)} variant="outline" disabled={!canContinue}>⊞ &nbsp;Join a Game</Btn>
       <p style={{ color: '#4a4035', fontSize: '11px', marginTop: '20px', fontFamily: "'Courier New', monospace" }}>── Est. 2025 ──</p>
     </UICard>
   )
 }
 
-function CreateScreen({ onBack, onCreated }) {
-  const { createLobby, loading, error } = useLobby()
+function CreateScreen({ onBack, onCreated, nickname }) {
+  const { createLobby, addPlayer, loading, error } = useLobby()
   const [name, setName] = useState('')
   const [password, setPassword] = useState('')
   const [confirm, setConfirm] = useState('')
@@ -130,6 +142,7 @@ function CreateScreen({ onBack, onCreated }) {
     if (!canSubmit) return
     const lobby = await createLobby({ name, password })
     if (lobby) {
+      await addPlayer({ lobbyId: lobby.id, nickname })
       setSuccess(true)
       setTimeout(() => onCreated(lobby), 1200)
     }
@@ -160,27 +173,17 @@ function CreateScreen({ onBack, onCreated }) {
           <Input label="Lobby Name" value={name} onChange={setName} placeholder="e.g. Dragon's Den" maxLength={30} />
           <Input label="Password" type="password" value={password} onChange={setPassword} placeholder="Min. 4 characters" />
           <Input label="Confirm Password" type="password" value={confirm} onChange={setConfirm} placeholder="Repeat password" />
-          {mismatch && (
-            <p style={{ color: '#c0392b', fontSize: '12px', marginBottom: '16px', fontFamily: "'Courier New', monospace" }}>
-              ✕ Passwords do not match
-            </p>
-          )}
-          {error && (
-            <p style={{ color: '#c0392b', fontSize: '12px', marginBottom: '16px', fontFamily: "'Courier New', monospace" }}>
-              ✕ {error}
-            </p>
-          )}
-          <Btn onClick={handleCreate} disabled={!canSubmit}>
-            {loading ? 'Creating…' : 'Create Lobby'}
-          </Btn>
+          {mismatch && <p style={{ color: '#c0392b', fontSize: '12px', marginBottom: '16px', fontFamily: "'Courier New', monospace" }}>✕ Passwords do not match</p>}
+          {error && <p style={{ color: '#c0392b', fontSize: '12px', marginBottom: '16px', fontFamily: "'Courier New', monospace" }}>✕ {error}</p>}
+          <Btn onClick={handleCreate} disabled={!canSubmit}>{loading ? 'Creating…' : 'Create Lobby'}</Btn>
         </>
       )}
     </UICard>
   )
 }
 
-function JoinScreen({ onBack, onJoined }) {
-  const { fetchLobbies, joinLobby, loading, error } = useLobby()
+function JoinScreen({ onBack, onJoined, nickname }) {
+  const { fetchLobbies, joinLobby, addPlayer, loading } = useLobby()
   const [lobbies, setLobbies] = useState([])
   const [selected, setSelected] = useState(null)
   const [password, setPassword] = useState('')
@@ -202,6 +205,7 @@ function JoinScreen({ onBack, onJoined }) {
     if (!selected || !password) return
     const lobby = await joinLobby({ lobbyId: selected, password })
     if (lobby) {
+      await addPlayer({ lobbyId: lobby.id, nickname })
       setSuccess(true)
       setTimeout(() => onJoined(lobby), 1200)
     } else {
@@ -233,13 +237,9 @@ function JoinScreen({ onBack, onJoined }) {
         <>
           <div style={{ marginBottom: '24px' }}>
             {fetching ? (
-              <p style={{ color: '#6b5d4f', fontSize: '13px', textAlign: 'center', fontFamily: "'Courier New', monospace" }}>
-                Loading tables…
-              </p>
+              <p style={{ color: '#6b5d4f', fontSize: '13px', textAlign: 'center', fontFamily: "'Courier New', monospace" }}>Loading tables…</p>
             ) : lobbies.length === 0 ? (
-              <p style={{ color: '#6b5d4f', fontSize: '13px', textAlign: 'center', fontFamily: "'Courier New', monospace" }}>
-                No open lobbies. Create one!
-              </p>
+              <p style={{ color: '#6b5d4f', fontSize: '13px', textAlign: 'center', fontFamily: "'Courier New', monospace" }}>No open lobbies. Create one!</p>
             ) : (
               lobbies.map(lobby => (
                 <div key={lobby.id} onClick={() => { setSelected(lobby.id); setJoinError(''); setPassword('') }}
@@ -265,20 +265,12 @@ function JoinScreen({ onBack, onJoined }) {
                 onChange={v => { setPassword(v); setJoinError('') }}
                 placeholder="Enter lobby password"
               />
-              {joinError && (
-                <p style={{ color: '#c0392b', fontSize: '12px', marginBottom: '16px', fontFamily: "'Courier New', monospace" }}>
-                  ✕ {joinError}
-                </p>
-              )}
-              <Btn onClick={handleJoin} disabled={!password || loading}>
-                {loading ? 'Checking…' : 'Enter Table'}
-              </Btn>
+              {joinError && <p style={{ color: '#c0392b', fontSize: '12px', marginBottom: '16px', fontFamily: "'Courier New', monospace" }}>✕ {joinError}</p>}
+              <Btn onClick={handleJoin} disabled={!password || loading}>{loading ? 'Checking…' : 'Enter Table'}</Btn>
             </>
           )}
           {!selected && lobbies.length > 0 && (
-            <p style={{ color: '#4a4035', fontSize: '11px', textAlign: 'center', fontFamily: "'Courier New', monospace" }}>
-              ↑ Select a table above to continue
-            </p>
+            <p style={{ color: '#4a4035', fontSize: '11px', textAlign: 'center', fontFamily: "'Courier New', monospace" }}>↑ Select a table above to continue</p>
           )}
         </>
       )}
@@ -286,7 +278,42 @@ function JoinScreen({ onBack, onJoined }) {
   )
 }
 
-function WaitingRoom({ lobby, onLeave }) {
+function WaitingRoom({ lobby, nickname, onLeave }) {
+  const { fetchPlayers, subscribePlayers, removePlayer } = useLobby()
+  const [players, setPlayers] = useState([])
+  const playerIdRef = useRef(null)
+
+  useEffect(() => {
+    // fetch current players
+    async function load() {
+      const data = await fetchPlayers(lobby.id)
+      setPlayers(data)
+      // find this player's row so we can remove them on leave
+      const me = data.find(p => p.nickname === nickname)
+      if (me) playerIdRef.current = me.id
+    }
+    load()
+
+    // subscribe to real-time changes
+    const channel = subscribePlayers(lobby.id, async () => {
+      const data = await fetchPlayers(lobby.id)
+      setPlayers(data)
+    })
+
+    return () => {
+      channel.unsubscribe()
+    }
+  }, [lobby.id])
+
+  async function handleLeave() {
+    if (playerIdRef.current) {
+      await removePlayer(playerIdRef.current)
+    }
+    onLeave()
+  }
+
+  const maxPlayers = 4
+
   return (
     <UICard style={{ maxWidth: '420px', width: '100%', textAlign: 'center' }}>
       <div style={{ fontSize: '48px', marginBottom: '16px' }}>♠</div>
@@ -297,7 +324,7 @@ function WaitingRoom({ lobby, onLeave }) {
       <p style={{
         color: '#8b7d6b', fontSize: '11px', letterSpacing: '2px',
         textTransform: 'uppercase', fontFamily: "'Courier New', monospace", marginBottom: '32px'
-      }}>Waiting for players…</p>
+      }}>Waiting for players… {players.length}/{maxPlayers}</p>
       <div style={{
         background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)',
         borderRadius: '8px', padding: '20px', marginBottom: '28px'
@@ -305,20 +332,29 @@ function WaitingRoom({ lobby, onLeave }) {
         <p style={{ color: '#6b5d4f', fontSize: '11px', letterSpacing: '1px', fontFamily: "'Courier New', monospace", margin: '0 0 10px' }}>
           PLAYERS IN ROOM
         </p>
-        {['You (host)', 'Waiting…', 'Waiting…', 'Waiting…'].map((p, i) => (
-          <div key={i} style={{
-            display: 'flex', alignItems: 'center', gap: '10px', padding: '8px 0',
-            borderBottom: i < 3 ? '1px solid rgba(255,255,255,0.04)' : 'none'
-          }}>
-            <div style={{
-              width: '8px', height: '8px', borderRadius: '50%',
-              background: i === 0 ? '#d4af37' : 'rgba(255,255,255,0.12)'
-            }} />
-            <span style={{ color: i === 0 ? '#d4af37' : '#4a4035', fontFamily: "'Georgia', serif", fontSize: '14px' }}>{p}</span>
-          </div>
-        ))}
+        {[...Array(maxPlayers)].map((_, i) => {
+          const player = players[i]
+          const isMe = player?.nickname === nickname
+          return (
+            <div key={i} style={{
+              display: 'flex', alignItems: 'center', gap: '10px', padding: '8px 0',
+              borderBottom: i < maxPlayers - 1 ? '1px solid rgba(255,255,255,0.04)' : 'none'
+            }}>
+              <div style={{
+                width: '8px', height: '8px', borderRadius: '50%',
+                background: player ? '#d4af37' : 'rgba(255,255,255,0.12)'
+              }} />
+              <span style={{
+                color: player ? (isMe ? '#d4af37' : '#f0ece4') : '#4a4035',
+                fontFamily: "'Georgia', serif", fontSize: '14px'
+              }}>
+                {player ? `${player.nickname}${isMe ? ' (you)' : ''}` : 'Waiting…'}
+              </span>
+            </div>
+          )
+        })}
       </div>
-      <Btn onClick={onLeave} variant="ghost">Leave Table</Btn>
+      <Btn onClick={handleLeave} variant="ghost">Leave Table</Btn>
     </UICard>
   )
 }
@@ -326,6 +362,7 @@ function WaitingRoom({ lobby, onLeave }) {
 export default function LobbyPage() {
   const [screen, setScreen] = useState('home')
   const [activeLobby, setActiveLobby] = useState(null)
+  const [nickname, setNickname] = useState('')
 
   return (
     <div style={{
@@ -335,10 +372,33 @@ export default function LobbyPage() {
       padding: '24px', position: 'relative', fontFamily: "'Georgia', serif"
     }}>
       <FloatingCards />
-      {screen === 'home' && <HomeScreen onCreate={() => setScreen('create')} onJoin={() => setScreen('join')} />}
-      {screen === 'create' && <CreateScreen onBack={() => setScreen('home')} onCreated={l => { setActiveLobby(l); setScreen('lobby') }} />}
-      {screen === 'join' && <JoinScreen onBack={() => setScreen('home')} onJoined={l => { setActiveLobby(l); setScreen('lobby') }} />}
-      {screen === 'lobby' && activeLobby && <WaitingRoom lobby={activeLobby} onLeave={() => { setActiveLobby(null); setScreen('home') }} />}
+      {screen === 'home' && (
+        <HomeScreen
+          onCreate={n => { setNickname(n); setScreen('create') }}
+          onJoin={n => { setNickname(n); setScreen('join') }}
+        />
+      )}
+      {screen === 'create' && (
+        <CreateScreen
+          onBack={() => setScreen('home')}
+          onCreated={l => { setActiveLobby(l); setScreen('lobby') }}
+          nickname={nickname}
+        />
+      )}
+      {screen === 'join' && (
+        <JoinScreen
+          onBack={() => setScreen('home')}
+          onJoined={l => { setActiveLobby(l); setScreen('lobby') }}
+          nickname={nickname}
+        />
+      )}
+      {screen === 'lobby' && activeLobby && (
+        <WaitingRoom
+          lobby={activeLobby}
+          nickname={nickname}
+          onLeave={() => { setActiveLobby(null); setScreen('home') }}
+        />
+      )}
     </div>
   )
 }

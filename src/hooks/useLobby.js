@@ -47,5 +47,46 @@ export function useLobby() {
     return data
   }
 
-  return { createLobby, joinLobby, fetchLobbies, loading, error }
+  async function addPlayer({ lobbyId, nickname }) {
+    const { data, error } = await supabase
+      .from('players')
+      .insert([{ lobby_id: lobbyId, nickname }])
+      .select()
+      .single()
+    if (error) { console.error(error.message); return null }
+    return data
+  }
+
+  async function removePlayer(playerId) {
+    await supabase.from('players').delete().eq('id', playerId)
+  }
+
+  function subscribePlayers(lobbyId, onChange) {
+    const channel = supabase
+      .channel(`players:${lobbyId}`)
+      .on('postgres_changes', {
+        event: '*',
+        schema: 'public',
+        table: 'players',
+        filter: `lobby_id=eq.${lobbyId}`,
+      }, onChange)
+      .subscribe()
+    return channel
+  }
+
+  async function fetchPlayers(lobbyId) {
+    const { data, error } = await supabase
+      .from('players')
+      .select('*')
+      .eq('lobby_id', lobbyId)
+      .order('created_at', { ascending: true })
+    if (error) { console.error(error.message); return [] }
+    return data
+  }
+
+  return {
+    createLobby, joinLobby, fetchLobbies,
+    addPlayer, removePlayer, subscribePlayers, fetchPlayers,
+    loading, error
+  }
 }
