@@ -117,7 +117,7 @@ function HomeScreen({ nickname, onCreate, onJoin }) {
       <p style={{
         color: '#d4af37', fontSize: '14px', marginBottom: '36px',
         fontFamily: "'Georgia', serif"
-      }}>Welcome, {nickname}</p>
+      }}>Welcome {nickname}</p>
       <Btn onClick={onCreate}>⊕ &nbsp;Create a Game</Btn>
       <Btn onClick={onJoin} variant="outline">⊞ &nbsp;Join a Game</Btn>
       <Btn onClick={() => navigate('/stats')} variant="ghost">♦ &nbsp;Statistics</Btn>
