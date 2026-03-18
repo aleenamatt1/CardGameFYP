@@ -1,5 +1,8 @@
 import { useState, useEffect, useRef } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { useLobby } from '../hooks/useLobby'
+import { useGame } from '../hooks/useGame'
+import { supabase } from '../lib/supabase'
 
 const suits = ['♠', '♥', '♦', '♣']
 
@@ -100,7 +103,6 @@ function Btn({ children, onClick, variant = 'primary', disabled }) {
 function HomeScreen({ onCreate, onJoin }) {
   const [nickname, setNickname] = useState('')
   const canContinue = nickname.trim().length >= 2
-
   return (
     <UICard style={{ textAlign: 'center', maxWidth: '420px', width: '100%' }}>
       <div style={{ marginBottom: '8px', fontSize: '30px', letterSpacing: '6px' }}>♠ ♥ ♦ ♣</div>
@@ -114,13 +116,7 @@ function HomeScreen({ onCreate, onJoin }) {
         fontFamily: "'Courier New', monospace"
       }}>Online Card Room</p>
       <div style={{ textAlign: 'left', marginBottom: '8px' }}>
-        <Input
-          label="Your Nickname"
-          value={nickname}
-          onChange={setNickname}
-          placeholder="e.g. Ace"
-          maxLength={20}
-        />
+        <Input label="Your Nickname" value={nickname} onChange={setNickname} placeholder="e.g. Ace" maxLength={20} />
       </div>
       <Btn onClick={() => onCreate(nickname)} disabled={!canContinue}>⊕ &nbsp;Create a Game</Btn>
       <Btn onClick={() => onJoin(nickname)} variant="outline" disabled={!canContinue}>⊞ &nbsp;Join a Game</Btn>
@@ -280,39 +276,56 @@ function JoinScreen({ onBack, onJoined, nickname }) {
 
 function WaitingRoom({ lobby, nickname, onLeave }) {
   const { fetchPlayers, subscribePlayers, removePlayer } = useLobby()
+  const { startGame } = useGame(lobby.id, nickname)
   const [players, setPlayers] = useState([])
   const playerIdRef = useRef(null)
+  const navigate = useNavigate()
+  const isHost = players.length > 0 && players[0].nickname === nickname
+  const maxPlayers = 4
 
   useEffect(() => {
-    // fetch current players
     async function load() {
       const data = await fetchPlayers(lobby.id)
       setPlayers(data)
-      // find this player's row so we can remove them on leave
       const me = data.find(p => p.nickname === nickname)
       if (me) playerIdRef.current = me.id
     }
     load()
 
-    // subscribe to real-time changes
     const channel = subscribePlayers(lobby.id, async () => {
       const data = await fetchPlayers(lobby.id)
       setPlayers(data)
+      const me = data.find(p => p.nickname === nickname)
+      if (me) playerIdRef.current = me.id
     })
+
+    const gameChannel = supabase
+      .channel(`game_start:${lobby.id}`)
+      .on('postgres_changes', {
+        event: 'INSERT',
+        schema: 'public',
+        table: 'game_state',
+        filter: `lobby_id=eq.${lobby.id}`,
+      }, () => {
+        navigate(`/game/${lobby.id}`, { state: { nickname, lobbyName: lobby.name } })
+      })
+      .subscribe()
 
     return () => {
       channel.unsubscribe()
+      gameChannel.unsubscribe()
     }
   }, [lobby.id])
 
   async function handleLeave() {
-    if (playerIdRef.current) {
-      await removePlayer(playerIdRef.current)
-    }
+    if (playerIdRef.current) await removePlayer(playerIdRef.current)
     onLeave()
   }
 
-  const maxPlayers = 4
+  async function handleStartGame() {
+    const playerNames = players.map(p => p.nickname)
+    await startGame(playerNames)
+  }
 
   return (
     <UICard style={{ maxWidth: '420px', width: '100%', textAlign: 'center' }}>
@@ -348,12 +361,25 @@ function WaitingRoom({ lobby, nickname, onLeave }) {
                 color: player ? (isMe ? '#d4af37' : '#f0ece4') : '#4a4035',
                 fontFamily: "'Georgia', serif", fontSize: '14px'
               }}>
-                {player ? `${player.nickname}${isMe ? ' (you)' : ''}` : 'Waiting…'}
+                {player ? `${player.nickname}${i === 0 ? ' (host)' : ''}${isMe ? ' (you)' : ''}` : 'Waiting…'}
               </span>
             </div>
           )
         })}
       </div>
+      {isHost && players.length >= 2 && (
+        <Btn onClick={handleStartGame}>Start Game</Btn>
+      )}
+      {isHost && players.length < 2 && (
+        <p style={{ color: '#6b5d4f', fontSize: '12px', marginBottom: '16px', fontFamily: "'Courier New', monospace" }}>
+          Waiting for at least 2 players to start…
+        </p>
+      )}
+      {!isHost && (
+        <p style={{ color: '#6b5d4f', fontSize: '12px', marginBottom: '16px', fontFamily: "'Courier New', monospace" }}>
+          Waiting for host to start the game…
+        </p>
+      )}
       <Btn onClick={handleLeave} variant="ghost">Leave Table</Btn>
     </UICard>
   )

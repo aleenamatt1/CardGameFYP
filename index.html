@@ -10,29 +10,3 @@
     <script type="module" src="/src/main.jsx"></script>
   </body>
 </html>
-```
-
----
-
-**`.gitignore`** — Tells Git which files to never commit. `node_modules` is huge and auto-generated, `.env` contains secret keys.
-
-Place it in: **root** (`/CardGame/`)
-```
-node_modules
-dist
-.env
-.env.local
-.DS_Store
-```
-
----
-
-**`.env.example`** — A safe template showing what environment variables the project needs, without exposing real secrets. Anyone cloning your repo will know what to fill in.
-
-Place it in: **root** (`/CardGame/`)
-```
-# Copy this file to .env and fill in your Supabase credentials.
-# Get these from: https://supabase.com → your project → Settings → API
-
-VITE_SUPABASE_URL=https://your-project-ref.supabase.co
-VITE_SUPABASE_ANON_KEY=your-anon-key-here
