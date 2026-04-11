@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { supabase } from '../lib/supabase'
 import { createDeck, dealHands, applyMove } from '../lib/gameEngine'
 
@@ -6,6 +6,8 @@ export function useGame(lobbyId, nickname) {
   const [gameState, setGameState] = useState(null)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState(null)
+  const moveCountRef = useRef(0)
+  const gameStartTimeRef = useRef(null)
 
   async function fetchGameState() {
     const { data, error } = await supabase
@@ -21,6 +23,8 @@ export function useGame(lobbyId, nickname) {
     setLoading(true)
     const deck = createDeck()
     const { hands, deck: remaining, pile } = dealHands(deck, players)
+    gameStartTimeRef.current = Date.now()
+    moveCountRef.current = 0
 
     const { data, error } = await supabase
       .from('game_state')
@@ -42,12 +46,27 @@ export function useGame(lobbyId, nickname) {
     setGameState(data)
   }
 
+  async function recordGameHistory(newState) {
+    const players = Object.keys(newState.hands)
+    const duration = gameStartTimeRef.current
+      ? Math.floor((Date.now() - gameStartTimeRef.current) / 1000)
+      : 0
+
+    await supabase.from('game_history').insert([{
+      lobby_id: lobbyId,
+      winner: newState.winner,
+      players,
+      total_moves: moveCountRef.current,
+      duration_seconds: duration,
+    }])
+  }
+
   async function makeMove(move) {
     if (!gameState) return
 
-    // merge currentSuit into state before applying move
     const stateWithSuit = { ...gameState, currentSuit: gameState.current_suit ?? null }
     const newState = applyMove(stateWithSuit, move)
+    moveCountRef.current += 1
 
     const { error } = await supabase
       .from('game_state')
@@ -59,12 +78,19 @@ export function useGame(lobbyId, nickname) {
         direction: newState.direction,
         status: newState.status,
         winner: newState.winner ?? null,
+        current_suit: newState.currentSuit ?? null,
       })
       .eq('id', gameState.id)
 
     if (error) {
       console.error('makeMove error:', error.message)
       setError(error.message)
+      return
+    }
+
+
+    if (newState.status === 'finished') {
+      await recordGameHistory(newState)
     }
   }
 
@@ -72,7 +98,12 @@ export function useGame(lobbyId, nickname) {
     if (!lobbyId) return
 
     fetchGameState().then(data => {
-      if (data) setGameState(data)
+      if (data) {
+        setGameState(data)
+        if (data.status === 'active' && !gameStartTimeRef.current) {
+          gameStartTimeRef.current = Date.now()
+        }
+      }
     })
 
     const channel = supabase

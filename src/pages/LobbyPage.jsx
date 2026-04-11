@@ -100,9 +100,8 @@ function Btn({ children, onClick, variant = 'primary', disabled }) {
   )
 }
 
-function HomeScreen({ onCreate, onJoin }) {
-  const [nickname, setNickname] = useState('')
-  const canContinue = nickname.trim().length >= 2
+function HomeScreen({ nickname, onCreate, onJoin }) {
+  const navigate = useNavigate()
   return (
     <UICard style={{ textAlign: 'center', maxWidth: '420px', width: '100%' }}>
       <div style={{ marginBottom: '8px', fontSize: '30px', letterSpacing: '6px' }}>♠ ♥ ♦ ♣</div>
@@ -112,14 +111,16 @@ function HomeScreen({ onCreate, onJoin }) {
       }}>SWITCH</h1>
       <p style={{
         color: '#8b7d6b', fontSize: '12px', letterSpacing: '3px',
-        textTransform: 'uppercase', marginBottom: '36px',
+        textTransform: 'uppercase', marginBottom: '8px',
         fontFamily: "'Courier New', monospace"
       }}>Online Card Room</p>
-      <div style={{ textAlign: 'left', marginBottom: '8px' }}>
-        <Input label="Your Nickname" value={nickname} onChange={setNickname} placeholder="e.g. Ace" maxLength={20} />
-      </div>
-      <Btn onClick={() => onCreate(nickname)} disabled={!canContinue}>⊕ &nbsp;Create a Game</Btn>
-      <Btn onClick={() => onJoin(nickname)} variant="outline" disabled={!canContinue}>⊞ &nbsp;Join a Game</Btn>
+      <p style={{
+        color: '#d4af37', fontSize: '14px', marginBottom: '36px',
+        fontFamily: "'Georgia', serif"
+      }}>Welcome, {nickname}</p>
+      <Btn onClick={onCreate}>⊕ &nbsp;Create a Game</Btn>
+      <Btn onClick={onJoin} variant="outline">⊞ &nbsp;Join a Game</Btn>
+      <Btn onClick={() => navigate('/stats')} variant="ghost">♦ &nbsp;Statistics</Btn>
       <p style={{ color: '#4a4035', fontSize: '11px', marginTop: '20px', fontFamily: "'Courier New', monospace" }}>── Est. 2025 ──</p>
     </UICard>
   )
@@ -385,10 +386,47 @@ function WaitingRoom({ lobby, nickname, onLeave }) {
   )
 }
 
-export default function LobbyPage() {
+export default function LobbyPage({ nickname, onLogOut }) {
   const [screen, setScreen] = useState('home')
   const [activeLobby, setActiveLobby] = useState(null)
-  const [nickname, setNickname] = useState('')
+  const navigate = useNavigate()
+
+  // check if user is already in an active game on mount
+  useEffect(() => {
+    async function checkActiveGame() {
+      if (!nickname) return
+      // find if this player is in any lobby
+      const { data: playerRow } = await supabase
+        .from('players')
+        .select('lobby_id')
+        .eq('nickname', nickname)
+        .single()
+
+      if (!playerRow) return
+
+      // check if that lobby has an active game
+      const { data: game } = await supabase
+        .from('game_state')
+        .select('*')
+        .eq('lobby_id', playerRow.lobby_id)
+        .eq('status', 'active')
+        .single()
+
+      if (game) {
+        // get lobby details
+        const { data: lobby } = await supabase
+          .from('lobbies')
+          .select('*')
+          .eq('id', playerRow.lobby_id)
+          .single()
+
+        if (lobby) {
+          navigate(`/game/${lobby.id}`, { state: { nickname, lobbyName: lobby.name } })
+        }
+      }
+    }
+    checkActiveGame()
+  }, [nickname])
 
   return (
     <div style={{
@@ -398,10 +436,21 @@ export default function LobbyPage() {
       padding: '24px', position: 'relative', fontFamily: "'Georgia', serif"
     }}>
       <FloatingCards />
+
+      {/* Log out button */}
+      <button onClick={onLogOut} style={{
+        position: 'fixed', top: '20px', right: '20px',
+        background: 'none', border: '1px solid rgba(255,255,255,0.1)',
+        borderRadius: '6px', padding: '8px 16px', color: '#6b5d4f',
+        fontSize: '11px', letterSpacing: '2px', textTransform: 'uppercase',
+        fontFamily: "'Courier New', monospace", cursor: 'pointer', zIndex: 10,
+      }}>Log out</button>
+
       {screen === 'home' && (
         <HomeScreen
-          onCreate={n => { setNickname(n); setScreen('create') }}
-          onJoin={n => { setNickname(n); setScreen('join') }}
+          nickname={nickname}
+          onCreate={() => setScreen('create')}
+          onJoin={() => setScreen('join')}
         />
       )}
       {screen === 'create' && (
