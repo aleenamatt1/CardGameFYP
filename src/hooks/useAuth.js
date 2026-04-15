@@ -38,10 +38,7 @@ export function useAuth() {
       .from('profiles')
       .insert([{ id: data.user.id, nickname }])
 
-    if (profileError) {
-      console.error('Profile insert error:', profileError.message)
-      return { error: profileError.message }
-    }
+    if (profileError) return { error: profileError.message }
 
     return { error: null }
   }
@@ -55,8 +52,8 @@ export function useAuth() {
   async function logOut() {
     try {
       await supabase.auth.signOut({ scope: 'local' })
-    } catch (err) {
-      console.warn('Sign out error:', err.message)
+    } catch {
+      // sign out errors are non-fatal; clear local state regardless
     }
     setUser(null)
     setProfile(null)
@@ -88,8 +85,7 @@ export function useAuth() {
           const p = await fetchProfile(session.user.id)
           setProfile(p)
         }
-      } catch (err) {
-        console.warn('Session init error:', err.message)
+      } catch {
       } finally {
         if (!resolved) {
           resolved = true
@@ -102,7 +98,7 @@ export function useAuth() {
     initSession()
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (event, session) => {
+      async (_event, session) => {
         if (session?.user) {
           setUser(session.user)
           const p = await fetchProfile(session.user.id)

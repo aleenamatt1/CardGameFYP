@@ -100,7 +100,7 @@ function Btn({ children, onClick, variant = 'primary', disabled }) {
   )
 }
 
-function HomeScreen({ nickname, onCreate, onJoin }) {
+function HomeScreen({ nickname, onCreate, onJoin, isGuest }) {
   const navigate = useNavigate()
   return (
     <UICard style={{ textAlign: 'center', maxWidth: '420px', width: '100%' }}>
@@ -120,7 +120,9 @@ function HomeScreen({ nickname, onCreate, onJoin }) {
       }}>Welcome {nickname}</p>
       <Btn onClick={onCreate}>⊕ &nbsp;Create a Game</Btn>
       <Btn onClick={onJoin} variant="outline">⊞ &nbsp;Join a Game</Btn>
+      {!isGuest && (
       <Btn onClick={() => navigate('/stats')} variant="ghost">♦ &nbsp;Statistics</Btn>
+      )}
       <p style={{ color: '#4a4035', fontSize: '11px', marginTop: '20px', fontFamily: "'Courier New', monospace" }}>── Est. 2025 ──</p>
     </UICard>
   )
@@ -386,7 +388,7 @@ function WaitingRoom({ lobby, nickname, onLeave }) {
   )
 }
 
-export default function LobbyPage({ nickname, onLogOut }) {
+export default function LobbyPage({ nickname, onLogOut, isGuest }) {
   const [screen, setScreen] = useState('home')
   const [activeLobby, setActiveLobby] = useState(null)
   const navigate = useNavigate()
@@ -447,11 +449,12 @@ export default function LobbyPage({ nickname, onLogOut }) {
       }}>Log out</button>
 
       {screen === 'home' && (
-        <HomeScreen
-          nickname={nickname}
-          onCreate={() => setScreen('create')}
-          onJoin={() => setScreen('join')}
-        />
+      <HomeScreen
+        nickname={nickname}
+        onCreate={() => setScreen('create')}
+        onJoin={() => setScreen('join')}
+        isGuest={isGuest}
+      />
       )}
       {screen === 'create' && (
         <CreateScreen

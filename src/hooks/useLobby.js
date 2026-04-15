@@ -1,61 +1,50 @@
 import { useState } from 'react'
 import { supabase } from '../lib/supabase'
 
+function withTimeout(promise, ms = 5000) {
+  const timeout = new Promise((_, reject) =>
+    setTimeout(() => reject(new Error('Request timed out. Please try again.')), ms)
+  )
+  return Promise.race([promise, timeout])
+}
+
 export function useLobby() {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState(null)
 
   async function createLobby({ name, password }) {
-  setLoading(true)
-  setError(null)
-
-  // race between the insert and a 5 second timeout
-  const insertPromise = supabase
-    .from('lobbies')
-    .insert([{ name, password }])
-    .select()
-    .single()
-
-  const timeoutPromise = new Promise((_, reject) =>
-    setTimeout(() => reject(new Error('Request timed out. Please try again.')), 5000)
-  )
-
-  try {
-    const { data, error } = await Promise.race([insertPromise, timeoutPromise])
-    setLoading(false)
-    if (error) { setError(error.message); return null }
-    return data
-  } catch (err) {
-    setLoading(false)
-    setError(err.message)
-    return null
+    setLoading(true)
+    setError(null)
+    try {
+      const { data, error } = await withTimeout(
+        supabase.from('lobbies').insert([{ name, password }]).select().single()
+      )
+      setLoading(false)
+      if (error) { setError(error.message); return null }
+      return data
+    } catch (err) {
+      setLoading(false)
+      setError(err.message)
+      return null
+    }
   }
-}
 
   async function fetchLobbies() {
-  setLoading(true)
-  setError(null)
-
-  const fetchPromise = supabase
-    .from('lobbies')
-    .select('*')
-    .order('created_at', { ascending: false })
-
-  const timeoutPromise = new Promise((_, reject) =>
-    setTimeout(() => reject(new Error('Request timed out')), 5000)
-  )
-
-  try {
-    const { data, error } = await Promise.race([fetchPromise, timeoutPromise])
-    setLoading(false)
-    if (error) { setError(error.message); return [] }
-    return data
-  } catch (err) {
-    setLoading(false)
-    setError(err.message)
-    return []
+    setLoading(true)
+    setError(null)
+    try {
+      const { data, error } = await withTimeout(
+        supabase.from('lobbies').select('*').order('created_at', { ascending: false })
+      )
+      setLoading(false)
+      if (error) { setError(error.message); return [] }
+      return data
+    } catch (err) {
+      setLoading(false)
+      setError(err.message)
+      return []
+    }
   }
-}
 
   async function joinLobby({ lobbyId, password }) {
     setLoading(true)

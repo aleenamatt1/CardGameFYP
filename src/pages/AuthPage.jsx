@@ -117,6 +117,13 @@ export default function AuthPage({ playAsGuest, signUp, logIn }) {
           <Btn onClick={() => setMode('login')}>Log In</Btn>
           <Btn onClick={() => setMode('signup')} variant="outline">Create Account</Btn>
           <Btn onClick={() => setMode('guest')} variant="ghost">♟ Play as Guest</Btn>
+          <p style={{
+            color: '#4a4035', fontSize: '11px', textAlign: 'center',
+            fontFamily: "'Courier New', monospace", letterSpacing: '1px',
+            marginTop: '4px', marginBottom: '0'
+          }}>
+            Log in to save stats & track your progress
+          </p>
         </div>
       </div>
     )
