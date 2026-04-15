@@ -1,49 +1,5 @@
 import { useState } from 'react'
-
-function Input({ label, type = 'text', value, onChange, placeholder }) {
-  return (
-    <div style={{ marginBottom: '20px' }}>
-      <label style={{
-        display: 'block', fontSize: '11px', letterSpacing: '2px',
-        textTransform: 'uppercase', color: '#8b7d6b', marginBottom: '8px',
-        fontFamily: "'Courier New', monospace"
-      }}>{label}</label>
-      <input type={type} value={value} onChange={e => onChange(e.target.value)}
-        placeholder={placeholder}
-        style={{
-          width: '100%', background: 'rgba(255,255,255,0.04)',
-          border: '1px solid rgba(255,255,255,0.12)', borderRadius: '6px',
-          padding: '12px 16px', color: '#f0ece4', fontSize: '15px',
-          fontFamily: "'Georgia', serif", outline: 'none',
-          boxSizing: 'border-box', transition: 'border-color 0.2s'
-        }}
-        onFocus={e => e.target.style.borderColor = 'rgba(212,175,55,0.6)'}
-        onBlur={e => e.target.style.borderColor = 'rgba(255,255,255,0.12)'}
-      />
-    </div>
-  )
-}
-
-function Btn({ children, onClick, disabled, variant = 'primary' }) {
-  const isPrimary = variant === 'primary'
-  const isGhost = variant === 'ghost'
-  return (
-    <button onClick={onClick} disabled={disabled} style={{
-      width: '100%', padding: '14px',
-      border: isPrimary ? 'none' : isGhost ? '1px solid rgba(255,255,255,0.15)' : '1px solid rgba(212,175,55,0.4)',
-      borderRadius: '6px',
-      background: isPrimary ? 'linear-gradient(135deg, #c9a227, #8b6914)' : 'transparent',
-      color: isPrimary ? '#1a1208' : '#d4af37', fontSize: '13px', letterSpacing: '2px',
-      textTransform: 'uppercase', fontFamily: "'Courier New', monospace",
-      fontWeight: isPrimary ? '700' : '500',
-      cursor: disabled ? 'not-allowed' : 'pointer', opacity: disabled ? 0.5 : 1,
-      transition: 'all 0.2s', marginBottom: '10px',
-    }}
-      onMouseEnter={e => { if (!disabled) e.target.style.opacity = '0.85' }}
-      onMouseLeave={e => { if (!disabled) e.target.style.opacity = '1' }}
-    >{children}</button>
-  )
-}
+import { Input, Btn } from '../components/ui'
 
 export default function AuthPage({ playAsGuest, signUp, logIn }) {
   const [mode, setMode] = useState('home') // 'home' | 'login' | 'signup' | 'guest'
@@ -102,7 +58,6 @@ export default function AuthPage({ playAsGuest, signUp, logIn }) {
     playAsGuest(nickname.trim())
   }
 
-  // ── Home screen ───────────────────────────────────────────────────────────
   if (mode === 'home') {
     return (
       <div style={{
@@ -129,7 +84,6 @@ export default function AuthPage({ playAsGuest, signUp, logIn }) {
     )
   }
 
-  // ── Guest screen ──────────────────────────────────────────────────────────
   if (mode === 'guest') {
     return (
       <div style={{
@@ -156,7 +110,6 @@ export default function AuthPage({ playAsGuest, signUp, logIn }) {
     )
   }
 
-  // ── Login / Signup screen ─────────────────────────────────────────────────
   const isLogin = mode === 'login'
   const canSubmit = email.trim() && password.length >= 6 && (isLogin || nickname.trim().length >= 2) && !loading
 

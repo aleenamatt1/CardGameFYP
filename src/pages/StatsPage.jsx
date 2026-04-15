@@ -102,7 +102,7 @@ export default function StatsPage() {
               )}
             </section>
 
-            {/* Summary cards */}
+           {/*Summary cards
             {leaderboard.length > 0 && (
               <section style={{ marginBottom: '48px' }}>
                 <h2 style={{
@@ -129,9 +129,9 @@ export default function StatsPage() {
                   ))}
                 </div>
               </section>
-            )}
+            )} */}
 
-            {/* Game history */}
+            {/* Game history
             <section>
               <h2 style={{
                 fontFamily: "'Palatino Linotype', serif", fontSize: '20px',
@@ -170,7 +170,7 @@ export default function StatsPage() {
                   ))}
                 </div>
               )}
-            </section>
+            </section>*/} 
           </>
         )}
       </div>
