@@ -59,7 +59,7 @@ export function skipPlayer(players, currentNickname, direction) {
 
 export function applyMove(state, move) {
   let { deck, hands, pile, direction, status, winner } = state
-  const players = Object.keys(hands)
+  const players = state.players || Object.keys(hands)
 
   //clone to avoid mutation
   hands = JSON.parse(JSON.stringify(hands))

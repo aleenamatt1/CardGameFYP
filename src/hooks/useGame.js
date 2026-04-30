@@ -30,6 +30,7 @@ export function useGame(lobbyId, nickname) {
       .from('game_state')
       .insert([{
         lobby_id: lobbyId,
+        players,
         deck: remaining,
         hands,
         pile,
@@ -70,6 +71,7 @@ export function useGame(lobbyId, nickname) {
     const { error } = await supabase
       .from('game_state')
       .update({
+        players: newState.players,
         deck: newState.deck,
         hands: newState.hands,
         pile: newState.pile,
