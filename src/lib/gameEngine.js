@@ -26,7 +26,7 @@ export function dealHands(deck, players, cardsEach = 7) {
   for (const nickname of players) {
     hands[nickname] = remaining.splice(0, cardsEach)
   }
-  // skip action cards at the top of the pile
+  //skip action cards at the top of the pile
   let starterIndex = remaining.findIndex(c => !['A', '2', '8'].includes(c.rank) && !(c.rank === 'J' && (c.suit === 'clubs' || c.suit === 'spades')))
   if (starterIndex === -1) starterIndex = 0
   const [starter] = remaining.splice(starterIndex, 1)
@@ -61,7 +61,7 @@ export function applyMove(state, move) {
   let { deck, hands, pile, direction, status, winner } = state
   const players = Object.keys(hands)
 
-  // deep clone to avoid mutation
+  //clone to avoid mutation
   hands = JSON.parse(JSON.stringify(hands))
   deck = [...deck]
   pile = [...pile]
@@ -79,7 +79,7 @@ export function applyMove(state, move) {
     let currentSuit = chosenSuit || null
 
     if (card.rank === '2') {
-      // next player picks up 2
+      //next player picks up 2
       const target = nextTurn
       const drawn = deck.splice(0, 2)
       if (drawn.length < 2) {
@@ -93,7 +93,7 @@ export function applyMove(state, move) {
     } else if (card.rank === '8') {
       nextTurn = skipPlayer(players, nickname, direction)
     } else if (isBlackJack(card)) {
-      // next player picks up 5
+      //next player picks up 5
       const target = nextTurn
       const drawn = deck.splice(0, 5)
       if (drawn.length < 5) {

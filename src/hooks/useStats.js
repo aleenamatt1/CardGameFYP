@@ -29,13 +29,11 @@ export function useStats() {
   return { history, leaderboard, loading }
 }
 
-// ── Helpers ───────────────────────────────────────────────────────────────────
-
 function computeLeaderboard(history) {
   const stats = {}
 
   for (const game of history) {
-    // make sure every player in the game has an entry
+    //make sure every player in the game has an entry
     for (const player of game.players) {
       if (!stats[player]) {
         stats[player] = { nickname: player, wins: 0, games: 0, totalMoves: 0, totalDuration: 0 }
@@ -44,13 +42,13 @@ function computeLeaderboard(history) {
       stats[player].totalMoves += game.total_moves ?? 0
       stats[player].totalDuration += game.duration_seconds ?? 0
     }
-    // credit the winner
+    //credit the winner
     if (game.winner && stats[game.winner]) {
       stats[game.winner].wins += 1
     }
   }
 
-  // convert to array and compute derived stats
+  //convert to array and compute derived stats
   return Object.values(stats)
     .map(p => ({
       ...p,

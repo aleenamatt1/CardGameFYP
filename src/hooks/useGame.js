@@ -64,8 +64,7 @@ export function useGame(lobbyId, nickname) {
   async function makeMove(move) {
     if (!gameState) return
 
-    const stateWithSuit = { ...gameState, currentSuit: gameState.current_suit ?? null }
-    const newState = applyMove(stateWithSuit, move)
+    const newState = applyMove(gameState, move)
     moveCountRef.current += 1
 
     const { error } = await supabase
@@ -99,7 +98,7 @@ export function useGame(lobbyId, nickname) {
 
     fetchGameState().then(data => {
       if (data) {
-        setGameState(data)
+        setGameState({ ...data, currentSuit: data.current_suit ?? null })
         if (data.status === 'active' && !gameStartTimeRef.current) {
           gameStartTimeRef.current = Date.now()
         }
@@ -114,7 +113,8 @@ export function useGame(lobbyId, nickname) {
         table: 'game_state',
         filter: `lobby_id=eq.${lobbyId}`,
       }, payload => {
-        setGameState(payload.new)
+        const raw = payload.new
+        setGameState({ ...raw, currentSuit: raw.current_suit ?? null })
       })
       .subscribe()
 
