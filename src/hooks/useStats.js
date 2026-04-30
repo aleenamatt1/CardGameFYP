@@ -1,6 +1,3 @@
-// useStats.js
-// Fetches game history and computes player statistics from Supabase.
-
 import { useState, useEffect } from 'react'
 import { supabase } from '../lib/supabase'
 
@@ -12,15 +9,22 @@ export function useStats() {
   useEffect(() => {
     async function fetchStats() {
       setLoading(true)
-      const { data, error } = await supabase
-        .from('game_history')
-        .select('*')
-        .order('created_at', { ascending: false })
 
-      if (error) { console.error(error.message); setLoading(false); return }
+      const [{ data: games, error: gamesError }, { data: profiles, error: profilesError }] = await Promise.all([
+        supabase.from('game_history').select('*').order('created_at', { ascending: false }),
+        supabase.from('profiles').select('nickname'),
+      ])
 
-      setHistory(data)
-      setLeaderboard(computeLeaderboard(data))
+      if (gamesError || profilesError) {
+        console.error(gamesError?.message ?? profilesError?.message)
+        setLoading(false)
+        return
+      }
+
+      const registeredNicknames = new Set(profiles.map(p => p.nickname))
+
+      setHistory(games)
+      setLeaderboard(computeLeaderboard(games, registeredNicknames))
       setLoading(false)
     }
     fetchStats()
@@ -29,12 +33,12 @@ export function useStats() {
   return { history, leaderboard, loading }
 }
 
-function computeLeaderboard(history) {
+function computeLeaderboard(history, registeredNicknames) {
   const stats = {}
 
   for (const game of history) {
-    //make sure every player in the game has an entry
     for (const player of game.players) {
+      if (!registeredNicknames.has(player)) continue
       if (!stats[player]) {
         stats[player] = { nickname: player, wins: 0, games: 0, totalMoves: 0, totalDuration: 0 }
       }
@@ -42,13 +46,11 @@ function computeLeaderboard(history) {
       stats[player].totalMoves += game.total_moves ?? 0
       stats[player].totalDuration += game.duration_seconds ?? 0
     }
-    //credit the winner
     if (game.winner && stats[game.winner]) {
       stats[game.winner].wins += 1
     }
   }
 
-  //convert to array and compute derived stats
   return Object.values(stats)
     .map(p => ({
       ...p,
