@@ -9,7 +9,7 @@ export default function App() {
   const { user, nickname, loading, isGuest, logOut, playAsGuest, signUp, logIn } = useAuth()
   console.log('App state:', { user, nickname, loading, isGuest })
 
-  if (loading || (user && !isGuest && !nickname)) {
+  if (loading) {
     return (
       <div style={{
         minHeight: '100vh',
